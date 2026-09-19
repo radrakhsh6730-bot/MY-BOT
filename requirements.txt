@@ -1,0 +1,2 @@
+highrise-bot-sdk
+setuptools==68.0.0
