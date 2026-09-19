@@ -399,8 +399,9 @@ class MyBot(BaseBot):
 
 # ==================== main ====================
 async def main():
-    room_id = os.getenv("ROOM_ID", "69029526dc071760c84aa355")
-    api_token = os.getenv("API_TOKEN", "d1b29fe834a9dc99541aba0f3905be0cdd5bb02af8d85a58aa3403505f9e99ad")
+    # 🔑 توکن و روم‌آیدی مستقیم (نه از Environment)
+    room_id = "69029526dc071760c84aa355"
+    api_token = "d1b29fe834a9dc99541aba0f3905be0cdd5bb02af8d85a58aa3403505f9e99ad"
 
     # اجرای وب‌سرور در یه نخ جداگانه
     web_thread = threading.Thread(target=run_web_server, daemon=True)
