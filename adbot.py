@@ -3,12 +3,9 @@ from highrise.__main__ import BotDefinition
 from asyncio import sleep, create_task, CancelledError
 import asyncio
 import os
-import json
 import random
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
-
-POSITION_FILE = "bot_position.json"
 
 # ==================== وب‌سرور زنده‌نگهدارنده ====================
 class PingHandler(BaseHTTPRequestHandler):
@@ -42,7 +39,8 @@ class MyBot(BaseBot):
         self.save_position_task = None
         self.admin_usernames = ["max._.eror"]
         self.truth_game_active = False
-        self.default_position = self.load_position()
+        # 📍 موقعیت پیش‌فرض مستقیم (بدون فایل)
+        self.default_position = Position(x=15.0, y=1.0, z=0.0)
         self.emotes = {
             "1": "idle_zombie",
             "2": "idle_layingdown2",
@@ -72,29 +70,15 @@ class MyBot(BaseBot):
     def is_admin(self, username: str) -> bool:
         return username.lower() in [a.lower() for a in self.admin_usernames]
 
-    def load_position(self):
-        try:
-            if os.path.exists(POSITION_FILE):
-                with open(POSITION_FILE, "r") as f:
-                    data = json.load(f)
-                    return Position(x=data["x"], y=data["y"], z=data["z"])
-        except Exception as e:
-            print(f"خطا در خوندن موقعیت: {e}")
-        return Position(x=15.0, y=1.0, z=0.0)
-
     def save_position(self, position):
-        try:
-            with open(POSITION_FILE, "w") as f:
-                json.dump({"x": position.x, "y": position.y, "z": position.z}, f)
-        except Exception as e:
-            print(f"خطا در ذخیره موقعیت: {e}")
+        pass  # Deplexo فقط-خواندنیه
 
     async def on_start(self, session_metadata):
         print("✅ ربات وصل شد!")
         self.user_id = session_metadata.user_id
         try:
             await self.highrise.teleport(user_id=self.user_id, dest=self.default_position)
-            print(f"📍 ربات به موقعیت ذخیره‌شده رفت.")
+            print(f"📍 ربات به موقعیت رفت.")
         except Exception as e:
             print(f"خطا در تلپورت اولیه: {e}")
         await self.start_bot_dance(self.bot_dance)
@@ -117,7 +101,6 @@ class MyBot(BaseBot):
                     for u, pos in room_users.content:
                         if u.id == self.user_id:
                             self.default_position = pos
-                            self.save_position(pos)
                             break
                 except Exception as e:
                     print(f"خطا در ذخیره موقعیت: {e}")
@@ -229,7 +212,6 @@ class MyBot(BaseBot):
                     await self.highrise.teleport(user_id=self.user_id, dest=user_position)
                     await sleep(1.0)
                     self.default_position = user_position
-                    self.save_position(user_position)
                     await self.highrise.chat(f"✅ ربات اومد جای @{user.username}!")
                 except Exception as e:
                     await self.highrise.chat(f"❌ خطا در تلپورت: {e}")
@@ -399,11 +381,9 @@ class MyBot(BaseBot):
 
 # ==================== main ====================
 async def main():
-    # 🔑 توکن و روم‌آیدی مستقیم (نه از Environment)
     room_id = "69029526dc071760c84aa355"
     api_token = "d1b29fe834a9dc99541aba0f3905be0cdd5bb02af8d85a58aa3403505f9e99ad"
 
-    # اجرای وب‌سرور در یه نخ جداگانه
     web_thread = threading.Thread(target=run_web_server, daemon=True)
     web_thread.start()
 
