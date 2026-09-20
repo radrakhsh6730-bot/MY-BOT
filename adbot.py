@@ -39,8 +39,8 @@ class MyBot(BaseBot):
         self.save_position_task = None
         self.admin_usernames = ["max._.eror"]
         self.truth_game_active = False
-        # 📍 موقعیت پیش‌فرض مستقیم (بدون فایل)
-        self.default_position = Position(x=15.0, y=1.0, z=0.0)
+        # 📍 موقعیت پیش‌فرض جدید
+        self.default_position = Position(x=16.0, y=0.0, z=4.0)
         self.emotes = {
             "1": "idle_zombie",
             "2": "idle_layingdown2",
