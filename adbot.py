@@ -31,17 +31,16 @@ class MyBot(BaseBot):
     def __init__(self):
         super().__init__()
         self.active_users = {}
-        self.all_users = {}
         self.user_id = None
         self.dance_tasks = {}
         self.user_dances = {}
         self.bot_dance_task = None
         self.announcement_task = None
         self.save_position_task = None
-        self.global_reminder_task = None
         self.admin_usernames = ["max._.eror"]
         self.truth_game_active = False
-        self.default_position = Position(x=16.0, y=0.0, z=4.0)
+        # 📍 موقعیت دقیق
+        self.default_position = Position(x=16.507070541382, y=0.0, z=4.492928981781)
         self.emotes = {
             "1": "idle_zombie",
             "2": "idle_layingdown2",
@@ -85,33 +84,6 @@ class MyBot(BaseBot):
         await self.start_bot_dance(self.bot_dance)
         self.start_announcement()
         self.start_position_saver()
-        if self.global_reminder_task:
-            self.global_reminder_task.cancel()
-        self.global_reminder_task = create_task(self.global_reminder_loop())
-
-    # ==================== یادآوری هر ۶ ساعت ====================
-    async def global_reminder_loop(self):
-        try:
-            while True:
-                await sleep(21600.0)  # ۶ ساعت
-                print(f"⏰ زمان یادآوری! تعداد کاربرا: {len(self.all_users)}")
-                for user_id, username in list(self.all_users.items()):
-                    # اگه کاربر توی رومه، یادآوری نفرست
-                    if username.lower() in self.active_users:
-                        continue
-                    try:
-                        await self.highrise.send_whisper(
-                            user_id,
-                            f"👋 {username} جان، دلمون برات تنگ شده! برگرد به روم ❤️"
-                        )
-                        print(f"📩 یادآوری به {username} فرستاده شد.")
-                    except Exception as e:
-                        print(f"خطا در یادآوری به {username}: {e}")
-                    await sleep(2.0)
-        except CancelledError:
-            pass
-        except Exception as e:
-            print(f"خطا در حلقه یادآوری: {e}")
 
     def start_position_saver(self):
         if self.save_position_task:
@@ -150,7 +122,7 @@ class MyBot(BaseBot):
     async def announcement_loop(self):
         try:
             while True:
-                await sleep(10.0)
+                await sleep(60.0)  # ⏱️ ۶۰ ثانیه (به جای ۱۰)
                 await self.highrise.chat(
                     "🤖 این ربات توسط @MAX._.EROR ساخته شده و فعلا در نسخه‌ی بتا هست.\n"
                     "🕺 برای زدن دنس، عدد ۱ تا ۲۲ را وارد کنید!"
@@ -172,7 +144,7 @@ class MyBot(BaseBot):
                         await self.highrise.send_emote(emote, self.user_id)
                     except Exception as e:
                         print(f"خطا در دنس ربات: {e}")
-                    await sleep(10.0)
+                    await sleep(25.0)  # ⏱️ ۲۵ ثانیه (به جای ۱۰)
             except CancelledError:
                 pass
             except Exception as e:
@@ -193,7 +165,7 @@ class MyBot(BaseBot):
                     except Exception as e:
                         print(f"خطا در دنس {username}: {e}")
                         break
-                    await sleep(10.0)
+                    await sleep(25.0)  # ⏱️ ۲۵ ثانیه (به جای ۱۰)
             except CancelledError:
                 pass
             except Exception as e:
@@ -210,21 +182,10 @@ class MyBot(BaseBot):
             return True
         return False
 
+    # ==================== ورود کاربر ====================
     async def on_user_join(self, user: User, position: Position):
         self.active_users[user.username.lower()] = user
-        self.all_users[user.id] = user.username
-
         await self.highrise.chat(f"👋 خوش آمدی {user.username} عزیز! ❤️")
-
-        try:
-            await self.highrise.send_whisper(
-                user.id,
-                f"🌟 به روم خوش آمدی {user.username}! امیدوارم بهت خوش بگذره 😊\n"
-                f"🕺 برای زدن دنس، عدد ۱ تا ۲۲ رو وارد کن!"
-            )
-            print(f"📩 پیام خصوصی به {user.username} فرستاده شد.")
-        except Exception as e:
-            print(f"خطا در ارسال پیام خصوصی: {e}")
 
     async def on_user_leave(self, user: User, position: Position = None):
         username = user.username.lower()
@@ -237,6 +198,51 @@ class MyBot(BaseBot):
 
         await self.highrise.chat(f"👋 {user.username} از روم خارج شد.")
 
+    # ==================== پیوی (on_message) ====================
+    async def on_message(self, user_id: str, text: str, message_id: str) -> None:
+        print(f"📥 پیوی از {user_id}: {text}")
+        msg = text.strip().lower()
+
+        # 👕 دستور !rad
+        if msg == "!rad":
+            try:
+                target_user = None
+                for username, user in self.active_users.items():
+                    if user.id == user_id:
+                        target_user = user
+                        break
+
+                if target_user:
+                    outfit_response = await self.highrise.get_user_outfit(target_user.id)
+                    if hasattr(outfit_response, 'outfit') and outfit_response.outfit:
+                        await self.highrise.set_outfit(outfit_response.outfit)
+                        try:
+                            await self.highrise.send_message(
+                                user_id, 
+                                f"👕 لباس @{target_user.username} رو پوشیدم!"
+                            )
+                        except:
+                            pass
+                        print(f"👕 لباس {target_user.username} پوشیده شد.")
+                    else:
+                        try:
+                            await self.highrise.send_message(user_id, "❌ اطلاعات لباس پیدا نشد!")
+                        except:
+                            pass
+                else:
+                    try:
+                        await self.highrise.send_message(user_id, "❌ شما توی روم نیستید!")
+                    except:
+                        pass
+            except Exception as e:
+                print(f"خطا در !rad: {e}")
+                try:
+                    await self.highrise.send_message(user_id, f"❌ خطا: {e}")
+                except:
+                    pass
+            return
+
+    # ==================== چت ====================
     async def on_chat(self, user: User, message: str):
         msg = message.strip().lower()
 
@@ -316,6 +322,7 @@ class MyBot(BaseBot):
                     "stop - توقف دنس\n"
                     "!me - ربات بیاد جای تو\n"
                     "!pos - نمایش موقعیت شما\n"
+                    "📩 توی پیوی ربات: !rad (لباس تو رو بپوشه)\n"
                     "!help - راهنما\n"
                     "!adminlist - لیست ادمین‌ها\n"
                     "!addadmin @user - افزودن ادمین\n"
@@ -442,8 +449,7 @@ class MyBot(BaseBot):
             print(f"خطا در ارسال پیام بچرخ: {e}")
 
     async def cleanup_tasks(self):
-        for task in [self.bot_dance_task, self.announcement_task, 
-                     self.save_position_task, self.global_reminder_task]:
+        for task in [self.bot_dance_task, self.announcement_task, self.save_position_task]:
             if task and not task.done():
                 task.cancel()
                 try:
