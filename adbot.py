@@ -53,20 +53,42 @@ class MyBot(BaseBot):
     def is_admin(self, username: str) -> bool:
         return username.lower() in [a.lower() for a in self.admin_usernames]
 
-    # ==================== تلپورت مداوم هر ۳ دقیقه ====================
+    async def force_teleport(self):
+        """تلپورت قطعی: ۱۰ بار + چک رسیدن"""
+        if not self.user_id:
+            return False
+        for i in range(10):
+            try:
+                await self.highrise.teleport(user_id=self.user_id, dest=self.default_position)
+                print(f"📍 تلپورت {i+1}/10")
+                await sleep(2.0)
+                try:
+                    room_users = await self.highrise.get_room_users()
+                    for u, pos in room_users.content:
+                        if u.id == self.user_id:
+                            if (abs(pos.x - self.default_position.x) < 0.5 and 
+                                abs(pos.z - self.default_position.z) < 0.5):
+                                print(f"✅ ربات سر جاش رسید!")
+                                return True
+                            break
+                except:
+                    pass
+            except Exception as e:
+                print(f"خطا در تلپورت: {e}")
+            await sleep(1.0)
+        return False
+
     def start_teleport_loop(self):
         if self.teleport_loop_task:
             self.teleport_loop_task.cancel()
         self.teleport_loop_task = create_task(self.teleport_loop())
 
     async def teleport_loop(self):
-        """هر ۳ دقیقه چک کن ربات سر جاشه یا نه، اگه نبود برش گردون"""
         try:
             while True:
                 await sleep(180.0)  # ۳ دقیقه
                 if not self.user_id:
                     continue
-                # توی حالت بازی چک نکن
                 if self.truth_game_active:
                     continue
                 try:
@@ -80,13 +102,7 @@ class MyBot(BaseBot):
                         if (abs(bot_pos.x - self.default_position.x) > 2.0 or
                             abs(bot_pos.z - self.default_position.z) > 2.0):
                             print(f"⚠️ ربات از جاش دوره! برمی‌گردونم...")
-                            for i in range(5):
-                                try:
-                                    await self.highrise.teleport(user_id=self.user_id, dest=self.default_position)
-                                    print(f"📍 تلپورت {i+1}/5")
-                                except:
-                                    pass
-                                await sleep(2.0)
+                            await self.force_teleport()
                 except Exception as e:
                     print(f"خطا در چک موقعیت: {e}")
         except CancelledError:
@@ -95,16 +111,8 @@ class MyBot(BaseBot):
     async def on_start(self, session_metadata):
         print("✅ ربات وصل شد!")
         self.user_id = session_metadata.user_id
-        # صبر ۲۰ ثانیه‌ای
-        await sleep(20.0)
-        # تلپورت ۱۰ بار
-        for i in range(10):
-            try:
-                await self.highrise.teleport(user_id=self.user_id, dest=self.default_position)
-                print(f"📍 تلپورت {i+1}/10")
-            except Exception as e:
-                print(f"خطا: {e}")
-            await sleep(3.0)
+        await sleep(20.0)  # ۲۰ ثانیه صبر
+        await self.force_teleport()
         await self.start_bot_dance(self.bot_dance)
         self.start_announcement()
         self.start_teleport_loop()
@@ -112,14 +120,9 @@ class MyBot(BaseBot):
     async def on_user_join(self, user: User, position: Position):
         self.active_users[user.username.lower()] = user
         if self.user_id and user.id == self.user_id:
-            print(f"🤖 ربات وارد شد! تلپورت...")
-            for i in range(10):
-                try:
-                    await self.highrise.teleport(user_id=self.user_id, dest=self.default_position)
-                    print(f"📍 on_join تلپورت {i+1}/10")
-                except:
-                    pass
-                await sleep(2.0)
+            print(f"🤖 ربات وارد شد!")
+            await sleep(2.0)
+            await self.force_teleport()
             return
         await self.highrise.chat(f"👋 خوش آمدی {user.username} عزیز! ❤️")
 
