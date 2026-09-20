@@ -39,7 +39,6 @@ class MyBot(BaseBot):
         self.position_check_task = None
         self.admin_usernames = ["max._.eror"]
         self.truth_game_active = False
-        # 📍 موقعیت دلخواه
         self.default_position = Position(x=16.507070541382, y=0.0, z=4.492928981781)
         self.emotes = {
             "1": "idle_zombie",
@@ -70,15 +69,10 @@ class MyBot(BaseBot):
     def is_admin(self, username: str) -> bool:
         return username.lower() in [a.lower() for a in self.admin_usernames]
 
-    # ==================== تلپورت مطمئن ====================
     async def safe_teleport(self, target_position):
-        """تلپورت مطمئن: چند بار تلاش می‌کنه تا ربات برسه"""
         for attempt in range(5):
             try:
-                await self.highrise.teleport(
-                    user_id=self.user_id, 
-                    dest=target_position
-                )
+                await self.highrise.teleport(user_id=self.user_id, dest=target_position)
                 print(f"📍 تلاش {attempt + 1}: تلپورت انجام شد.")
                 await sleep(2.0)
                 try:
@@ -98,23 +92,15 @@ class MyBot(BaseBot):
         print(f"⚠️ تلپورت بعد از ۵ بار موفق نشد.")
         return False
 
-    # ==================== شروع ربات ====================
     async def on_start(self, session_metadata):
         print("✅ ربات وصل شد!")
         self.user_id = session_metadata.user_id
-
-        # صبر کن تا Spawn Point لود شه
         await sleep(3.0)
-
-        # تلپورت مطمئن
         await self.safe_teleport(self.default_position)
-
-        # شروع تسک‌ها
         await self.start_bot_dance(self.bot_dance)
         self.start_announcement()
         self.start_position_check()
 
-    # ==================== چک موقعیت هر ۶۰ ثانیه ====================
     def start_position_check(self):
         if self.position_check_task:
             self.position_check_task.cancel()
@@ -123,10 +109,9 @@ class MyBot(BaseBot):
     async def position_check_loop(self):
         try:
             while True:
-                await sleep(60.0)  # ⏱️ ۶۰ ثانیه (به جای ۳۰)
+                await sleep(60.0)
                 if not self.user_id:
                     continue
-                # توی حالت بازی چک نکن
                 if self.truth_game_active:
                     continue
                 try:
@@ -166,7 +151,7 @@ class MyBot(BaseBot):
                 await sleep(2.0)
                 await self.highrise.chat("🕺 برای زدن دنس، عدد ۱ تا ۲۲ را وارد کنید!")
                 await sleep(2.0)
-                await self.highrise.chat("🟢 برای توقف دنس، کلمه «ایست» را بزنید.")
+                await self.highrise.chat("🛑 برای توقف دنس، کلمه «ایست» را بزنید.")
         except CancelledError:
             pass
         except Exception as e:
@@ -496,4 +481,18 @@ async def main():
         try:
             bot_instance = MyBot()
             bot_def = BotDefinition(room_id=room_id, api_token=api_token, bot=bot_instance)
-            print(f"🔌 تلاش برای اتصال... روم: {room_id}
+            print(f"🔌 تلاش برای اتصال... روم: {room_id}")
+            from highrise.__main__ import main as highrise_main
+            await highrise_main([bot_def])
+        except Exception as e:
+            print(f"❌ خطای اتصال: {e}")
+            try:
+                await bot_instance.cleanup_tasks()
+            except Exception:
+                pass
+            attempt += 1
+            print(f"⏳ تلاش مجدد {attempt}/{max_reconnect}...")
+            await asyncio.sleep(6)
+
+if __name__ == "__main__":
+    asyncio.run(main())
