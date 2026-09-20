@@ -31,15 +31,16 @@ class MyBot(BaseBot):
     def __init__(self):
         super().__init__()
         self.active_users = {}
+        self.all_users = {}
         self.user_id = None
         self.dance_tasks = {}
         self.user_dances = {}
         self.bot_dance_task = None
         self.announcement_task = None
         self.save_position_task = None
+        self.global_reminder_task = None
         self.admin_usernames = ["max._.eror"]
         self.truth_game_active = False
-        # 📍 موقعیت پیش‌فرض جدید
         self.default_position = Position(x=16.0, y=0.0, z=4.0)
         self.emotes = {
             "1": "idle_zombie",
@@ -71,7 +72,7 @@ class MyBot(BaseBot):
         return username.lower() in [a.lower() for a in self.admin_usernames]
 
     def save_position(self, position):
-        pass  # Deplexo فقط-خواندنیه
+        pass
 
     async def on_start(self, session_metadata):
         print("✅ ربات وصل شد!")
@@ -84,6 +85,33 @@ class MyBot(BaseBot):
         await self.start_bot_dance(self.bot_dance)
         self.start_announcement()
         self.start_position_saver()
+        if self.global_reminder_task:
+            self.global_reminder_task.cancel()
+        self.global_reminder_task = create_task(self.global_reminder_loop())
+
+    # ==================== یادآوری هر ۶ ساعت ====================
+    async def global_reminder_loop(self):
+        try:
+            while True:
+                await sleep(21600.0)  # ۶ ساعت
+                print(f"⏰ زمان یادآوری! تعداد کاربرا: {len(self.all_users)}")
+                for user_id, username in list(self.all_users.items()):
+                    # اگه کاربر توی رومه، یادآوری نفرست
+                    if username.lower() in self.active_users:
+                        continue
+                    try:
+                        await self.highrise.send_whisper(
+                            user_id,
+                            f"👋 {username} جان، دلمون برات تنگ شده! برگرد به روم ❤️"
+                        )
+                        print(f"📩 یادآوری به {username} فرستاده شد.")
+                    except Exception as e:
+                        print(f"خطا در یادآوری به {username}: {e}")
+                    await sleep(2.0)
+        except CancelledError:
+            pass
+        except Exception as e:
+            print(f"خطا در حلقه یادآوری: {e}")
 
     def start_position_saver(self):
         if self.save_position_task:
@@ -184,19 +212,49 @@ class MyBot(BaseBot):
 
     async def on_user_join(self, user: User, position: Position):
         self.active_users[user.username.lower()] = user
+        self.all_users[user.id] = user.username
+
         await self.highrise.chat(f"👋 خوش آمدی {user.username} عزیز! ❤️")
+
+        try:
+            await self.highrise.send_whisper(
+                user.id,
+                f"🌟 به روم خوش آمدی {user.username}! امیدوارم بهت خوش بگذره 😊\n"
+                f"🕺 برای زدن دنس، عدد ۱ تا ۲۲ رو وارد کن!"
+            )
+            print(f"📩 پیام خصوصی به {user.username} فرستاده شد.")
+        except Exception as e:
+            print(f"خطا در ارسال پیام خصوصی: {e}")
 
     async def on_user_leave(self, user: User, position: Position = None):
         username = user.username.lower()
         self.active_users.pop(username, None)
+
         if username in self.dance_tasks:
             self.dance_tasks[username].cancel()
             self.dance_tasks.pop(username, None)
             self.user_dances.pop(username, None)
+
         await self.highrise.chat(f"👋 {user.username} از روم خارج شد.")
 
     async def on_chat(self, user: User, message: str):
         msg = message.strip().lower()
+
+        if msg == "!pos":
+            try:
+                room_users = await self.highrise.get_room_users()
+                found = False
+                for u, pos in room_users.content:
+                    if u.username.lower() == user.username.lower():
+                        await self.highrise.chat(f"📍 موقعیت شما: x={pos.x}, y={pos.y}, z={pos.z}")
+                        found = True
+                        break
+                if not found:
+                    await self.highrise.chat("❌ موقعیت شما پیدا نشد!")
+            except Exception as e:
+                await self.highrise.chat(f"❌ خطا: {e}")
+            return
+
         if msg == "!me":
             user_position = None
             try:
@@ -218,6 +276,7 @@ class MyBot(BaseBot):
             else:
                 await self.highrise.chat("❌ موقعیت شما پیدا نشد!")
             return
+
         if self.truth_game_active:
             if msg in ["بچرخ", "bchrkh", "spin", "بچرخون"]:
                 await self.spin_bottle()
@@ -228,29 +287,35 @@ class MyBot(BaseBot):
             if msg in self.emotes:
                 await self.start_dance(user, self.emotes[msg])
                 return
+
         if msg in self.emotes:
             await self.start_dance(user, self.emotes[msg])
             return
+
         if msg in ["سلام", "salam", "hi", "hello"]:
             await self.highrise.chat(
                 f"👋 سلام {user.username}! من یه رباتم و نمی‌تونم حرف بزنم، "
                 f"ولی می‌تونم برات برقصم! 🕺 عدد ۱ تا ۲۲ رو وارد کن."
             )
             return
+
         if msg in ["stop", "استوپ"]:
             if await self.stop_dance(user):
                 await self.highrise.chat(f"🛑 دنس @{user.username} متوقف شد!")
             return
+
         if msg.startswith("!"):
             if not self.is_admin(user.username):
                 await self.highrise.chat(f"❌ {user.username}، فقط ادمین‌ها!")
                 return
+
             if msg == "!help":
                 help_text = (
                     "📋 دستورات ربات:\n"
                     "1-22 - دنس‌ها\n"
                     "stop - توقف دنس\n"
                     "!me - ربات بیاد جای تو\n"
+                    "!pos - نمایش موقعیت شما\n"
                     "!help - راهنما\n"
                     "!adminlist - لیست ادمین‌ها\n"
                     "!addadmin @user - افزودن ادمین\n"
@@ -261,10 +326,12 @@ class MyBot(BaseBot):
                 )
                 await self.highrise.chat(help_text)
                 return
+
             if msg == "!adminlist":
                 admin_list = "\n".join([f"👑 @{a}" for a in self.admin_usernames])
                 await self.highrise.chat(f"📋 لیست ادمین‌ها:\n{admin_list}")
                 return
+
             if msg.startswith("!addadmin "):
                 parts = msg.split()
                 if len(parts) != 2 or not parts[1].startswith("@"):
@@ -277,6 +344,7 @@ class MyBot(BaseBot):
                 self.admin_usernames.append(target)
                 await self.highrise.chat(f"✅ @{target} اضافه شد!")
                 return
+
             if msg.startswith("!removeadmin "):
                 parts = msg.split()
                 if len(parts) != 2 or not parts[1].startswith("@"):
@@ -292,6 +360,7 @@ class MyBot(BaseBot):
                 self.admin_usernames = [a for a in self.admin_usernames if a.lower() != target]
                 await self.highrise.chat(f"✅ @{target} حذف شد!")
                 return
+
             if msg.startswith("!tele "):
                 parts = msg.split()
                 if len(parts) != 2 or not parts[1].startswith("@"):
@@ -317,6 +386,7 @@ class MyBot(BaseBot):
                 except Exception as e:
                     await self.highrise.chat(f"❌ خطا: {e}")
                 return
+
             if msg.startswith("!dance "):
                 parts = msg.split()
                 if len(parts) != 2 or not parts[1].startswith("@"):
@@ -330,6 +400,7 @@ class MyBot(BaseBot):
                 await self.start_dance(target_user, self.emotes["21"])
                 await self.highrise.chat(f"🕺 @{target_username} داره دنس ۲۱ می‌زنه!")
                 return
+
             if msg == "!tr":
                 await self.start_truth_game(user)
                 return
@@ -371,7 +442,8 @@ class MyBot(BaseBot):
             print(f"خطا در ارسال پیام بچرخ: {e}")
 
     async def cleanup_tasks(self):
-        for task in [self.bot_dance_task, self.announcement_task, self.save_position_task]:
+        for task in [self.bot_dance_task, self.announcement_task, 
+                     self.save_position_task, self.global_reminder_task]:
             if task and not task.done():
                 task.cancel()
                 try:
