@@ -166,7 +166,7 @@ class MyBot(BaseBot):
                 await sleep(2.0)
                 await self.highrise.chat("🕺 برای زدن دنس، عدد ۱ تا ۲۲ را وارد کنید!")
                 await sleep(2.0)
-                await self.highrise.chat("🛑 برای توقف دنس، کلمه «ایست» را بزنید.")
+                await self.highrise.chat("🟢 برای توقف دنس، کلمه «ایست» را بزنید.")
         except CancelledError:
             pass
         except Exception as e:
