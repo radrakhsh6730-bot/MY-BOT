@@ -38,7 +38,7 @@ class MyBot(BaseBot):
         self.announcement_task = None
         self.admin_usernames = ["max._.eror"]
         self.truth_game_active = False
-        # 📍 موقعیت ثابت (هیچ‌وقت overwrite نمی‌شه)
+        # 📍 موقعیت ثابت
         self.default_position = Position(x=16.507070541382, y=0.0, z=4.492928981781)
         self.emotes = {
             "1": "idle_zombie",
@@ -64,7 +64,8 @@ class MyBot(BaseBot):
             "21": "emote-threadexchange-star",
             "22": "emote-ghost-idle",
         }
-        self.bot_dance = "dance-floss"
+        # 🕺 دنس ربات: idle-space
+        self.bot_dance = "idle-space"
 
     def is_admin(self, username: str) -> bool:
         return username.lower() in [a.lower() for a in self.admin_usernames]
