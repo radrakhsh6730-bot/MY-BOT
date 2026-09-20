@@ -7,7 +7,6 @@ import random
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-# ==================== وب‌سرور زنده‌نگهدارنده ====================
 class PingHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -26,7 +25,6 @@ def run_web_server():
     except Exception as e:
         print(f"خطا در وب‌سرور: {e}")
 
-# ==================== ربات ====================
 class MyBot(BaseBot):
     def __init__(self):
         super().__init__()
@@ -36,102 +34,103 @@ class MyBot(BaseBot):
         self.user_dances = {}
         self.bot_dance_task = None
         self.announcement_task = None
-        self.position_check_task = None
+        self.teleport_loop_task = None
         self.admin_usernames = ["max._.eror"]
         self.truth_game_active = False
-        self.default_position = Position(x=16.507070541382, y=0.0, z=4.492928981781)
+        self.default_position = Position(x=16.5, y=0.0, z=4.51)
         self.emotes = {
-            "1": "idle_zombie",
-            "2": "idle_layingdown2",
-            "3": "idle_layingdown",
-            "4": "idle-sleep",
-            "5": "idle-sad",
-            "6": "idle-posh",
-            "7": "idle-loop-tired",
-            "8": "idle-loop-tapdance",
-            "9": "idle-loop-sitfloor",
-            "10": "idle-loop-shy",
-            "11": "idle-loop-sad",
-            "12": "idle-loop-happy",
-            "13": "idle-loop-annoyed",
-            "14": "idle-loop-aerobics",
-            "15": "idle-lookup",
-            "16": "idle-hero",
-            "17": "idle-floorsleeping",
-            "18": "idle-enthusiastic",
-            "19": "idle-dance-swinging",
-            "20": "idle-dance-headbobbing",
-            "21": "emote-threadexchange-star",
-            "22": "emote-ghost-idle",
+            "1": "idle_zombie", "2": "idle_layingdown2", "3": "idle_layingdown",
+            "4": "idle-sleep", "5": "idle-sad", "6": "idle-posh",
+            "7": "idle-loop-tired", "8": "idle-loop-tapdance", "9": "idle-loop-sitfloor",
+            "10": "idle-loop-shy", "11": "idle-loop-sad", "12": "idle-loop-happy",
+            "13": "idle-loop-annoyed", "14": "idle-loop-aerobics", "15": "idle-lookup",
+            "16": "idle-hero", "17": "idle-floorsleeping", "18": "idle-enthusiastic",
+            "19": "idle-dance-swinging", "20": "idle-dance-headbobbing",
+            "21": "emote-threadexchange-star", "22": "emote-ghost-idle",
         }
         self.bot_dance = self.emotes["22"]
 
     def is_admin(self, username: str) -> bool:
         return username.lower() in [a.lower() for a in self.admin_usernames]
 
-    async def safe_teleport(self, target_position):
-        for attempt in range(5):
-            try:
-                await self.highrise.teleport(user_id=self.user_id, dest=target_position)
-                print(f"📍 تلاش {attempt + 1}: تلپورت انجام شد.")
-                await sleep(2.0)
-                try:
-                    room_users = await self.highrise.get_room_users()
-                    for u, pos in room_users.content:
-                        if u.id == self.user_id:
-                            if (abs(pos.x - target_position.x) < 1.0 and 
-                                abs(pos.z - target_position.z) < 1.0):
-                                print(f"✅ ربات به موقعیت رسید!")
-                                return True
-                            break
-                except Exception as e:
-                    print(f"خطا در چک موقعیت: {e}")
-            except Exception as e:
-                print(f"خطا در تلپورت: {e}")
-            await sleep(1.5)
-        print(f"⚠️ تلپورت بعد از ۵ بار موفق نشد.")
-        return False
+    # ==================== تلپورت مداوم هر ۳ دقیقه ====================
+    def start_teleport_loop(self):
+        if self.teleport_loop_task:
+            self.teleport_loop_task.cancel()
+        self.teleport_loop_task = create_task(self.teleport_loop())
 
-    async def on_start(self, session_metadata):
-        print("✅ ربات وصل شد!")
-        self.user_id = session_metadata.user_id
-        await sleep(3.0)
-        await self.safe_teleport(self.default_position)
-        await self.start_bot_dance(self.bot_dance)
-        self.start_announcement()
-        self.start_position_check()
-
-    def start_position_check(self):
-        if self.position_check_task:
-            self.position_check_task.cancel()
-        self.position_check_task = create_task(self.position_check_loop())
-
-    async def position_check_loop(self):
+    async def teleport_loop(self):
+        """هر ۳ دقیقه چک کن ربات سر جاشه یا نه، اگه نبود برش گردون"""
         try:
             while True:
-                await sleep(60.0)
+                await sleep(180.0)  # ۳ دقیقه
                 if not self.user_id:
                     continue
+                # توی حالت بازی چک نکن
                 if self.truth_game_active:
                     continue
                 try:
                     room_users = await self.highrise.get_room_users()
-                    bot_position = None
+                    bot_pos = None
                     for u, pos in room_users.content:
                         if u.id == self.user_id:
-                            bot_position = pos
+                            bot_pos = pos
                             break
-                    if bot_position:
-                        if (abs(bot_position.x - self.default_position.x) > 1.0 or
-                            abs(bot_position.z - self.default_position.z) > 1.0):
-                            print(f"⚠️ ربات از جاش دور شده! برمی‌گردونم...")
-                            await self.safe_teleport(self.default_position)
+                    if bot_pos:
+                        if (abs(bot_pos.x - self.default_position.x) > 2.0 or
+                            abs(bot_pos.z - self.default_position.z) > 2.0):
+                            print(f"⚠️ ربات از جاش دوره! برمی‌گردونم...")
+                            for i in range(5):
+                                try:
+                                    await self.highrise.teleport(user_id=self.user_id, dest=self.default_position)
+                                    print(f"📍 تلپورت {i+1}/5")
+                                except:
+                                    pass
+                                await sleep(2.0)
                 except Exception as e:
                     print(f"خطا در چک موقعیت: {e}")
         except CancelledError:
             pass
-        except Exception as e:
-            print(f"خطا در حلقه چک موقعیت: {e}")
+
+    async def on_start(self, session_metadata):
+        print("✅ ربات وصل شد!")
+        self.user_id = session_metadata.user_id
+        # صبر ۲۰ ثانیه‌ای
+        await sleep(20.0)
+        # تلپورت ۱۰ بار
+        for i in range(10):
+            try:
+                await self.highrise.teleport(user_id=self.user_id, dest=self.default_position)
+                print(f"📍 تلپورت {i+1}/10")
+            except Exception as e:
+                print(f"خطا: {e}")
+            await sleep(3.0)
+        await self.start_bot_dance(self.bot_dance)
+        self.start_announcement()
+        self.start_teleport_loop()
+
+    async def on_user_join(self, user: User, position: Position):
+        self.active_users[user.username.lower()] = user
+        if self.user_id and user.id == self.user_id:
+            print(f"🤖 ربات وارد شد! تلپورت...")
+            for i in range(10):
+                try:
+                    await self.highrise.teleport(user_id=self.user_id, dest=self.default_position)
+                    print(f"📍 on_join تلپورت {i+1}/10")
+                except:
+                    pass
+                await sleep(2.0)
+            return
+        await self.highrise.chat(f"👋 خوش آمدی {user.username} عزیز! ❤️")
+
+    async def on_user_leave(self, user: User, position: Position = None):
+        username = user.username.lower()
+        self.active_users.pop(username, None)
+        if username in self.dance_tasks:
+            self.dance_tasks[username].cancel()
+            self.dance_tasks.pop(username, None)
+            self.user_dances.pop(username, None)
+        await self.highrise.chat(f"👋 {user.username} از روم خارج شد.")
 
     def start_announcement(self):
         if self.announcement_task:
@@ -207,19 +206,6 @@ class MyBot(BaseBot):
             return True
         return False
 
-    async def on_user_join(self, user: User, position: Position):
-        self.active_users[user.username.lower()] = user
-        await self.highrise.chat(f"👋 خوش آمدی {user.username} عزیز! ❤️")
-
-    async def on_user_leave(self, user: User, position: Position = None):
-        username = user.username.lower()
-        self.active_users.pop(username, None)
-        if username in self.dance_tasks:
-            self.dance_tasks[username].cancel()
-            self.dance_tasks.pop(username, None)
-            self.user_dances.pop(username, None)
-        await self.highrise.chat(f"👋 {user.username} از روم خارج شد.")
-
     async def on_chat(self, user: User, message: str):
         msg = message.strip().lower()
 
@@ -252,8 +238,8 @@ class MyBot(BaseBot):
                 for u, pos in room_users.content:
                     if u.username.lower() == user.username.lower():
                         self.default_position = pos
-                        await self.safe_teleport(pos)
-                        await self.highrise.chat(f"📍 موقعیت جدید ثبت شد: x={pos.x}, y={pos.y}, z={pos.z}")
+                        await self.highrise.teleport(user_id=self.user_id, dest=pos)
+                        await self.highrise.chat(f"📍 موقعیت جدید: x={pos.x}, y={pos.y}, z={pos.z}")
                         break
             except Exception as e:
                 await self.highrise.chat(f"❌ خطا: {e}")
@@ -280,10 +266,11 @@ class MyBot(BaseBot):
                         user_position = pos
                         break
             except Exception as e:
-                print(f"خطا در گرفتن موقعیت: {e}")
+                print(f"خطا: {e}")
             if user_position:
                 try:
-                    await self.safe_teleport(user_position)
+                    await self.highrise.teleport(user_id=self.user_id, dest=user_position)
+                    await sleep(1.0)
                     self.default_position = user_position
                     await self.highrise.chat(f"✅ ربات اومد جای @{user.username}!")
                 except Exception as e:
@@ -459,7 +446,7 @@ class MyBot(BaseBot):
             print(f"خطا در ارسال پیام بچرخ: {e}")
 
     async def cleanup_tasks(self):
-        for task in [self.bot_dance_task, self.announcement_task, self.position_check_task]:
+        for task in [self.bot_dance_task, self.announcement_task, self.teleport_loop_task]:
             if task and not task.done():
                 task.cancel()
                 try:
@@ -467,7 +454,6 @@ class MyBot(BaseBot):
                 except CancelledError:
                     pass
 
-# ==================== main ====================
 async def main():
     room_id = "69029526dc071760c84aa355"
     api_token = "d1b29fe834a9dc99541aba0f3905be0cdd5bb02af8d85a58aa3403505f9e99ad"
