@@ -38,7 +38,7 @@ class MyBot(BaseBot):
         self.announcement_task = None
         self.admin_usernames = ["max._.eror"]
         self.truth_game_active = False
-        # 📍 موقعیت پیش‌فرض (با !setpos عوض می‌شه)
+        # 📍 موقعیت ثابت (هیچ‌وقت overwrite نمی‌شه)
         self.default_position = Position(x=16.507070541382, y=0.0, z=4.492928981781)
         self.emotes = {
             "1": "idle_zombie",
@@ -64,7 +64,7 @@ class MyBot(BaseBot):
             "21": "emote-threadexchange-star",
             "22": "emote-ghost-idle",
         }
-        self.bot_dance = self.emotes["21"]
+        self.bot_dance = "dance-floss"
 
     def is_admin(self, username: str) -> bool:
         return username.lower() in [a.lower() for a in self.admin_usernames]
@@ -94,10 +94,11 @@ class MyBot(BaseBot):
         try:
             while True:
                 await sleep(60.0)
-                await self.highrise.chat(
-                    "🤖 این ربات توسط @MAX._.EROR ساخته شده و فعلا در نسخه‌ی بتا هست.\n"
-                    "🕺 برای زدن دنس، عدد ۱ تا ۲۲ را وارد کنید!"
-                )
+                await self.highrise.chat("🤖 این ربات توسط @MAX._.EROR ساخته شده و فعلا در نسخه‌ی بتا هست.")
+                await sleep(2.0)
+                await self.highrise.chat("🕺 برای زدن دنس، عدد ۱ تا ۲۲ را وارد کنید!")
+                await sleep(2.0)
+                await self.highrise.chat("🛑 برای توقف دنس، کلمه «ایست» را بزنید.")
         except CancelledError:
             pass
         except Exception as e:
@@ -115,7 +116,7 @@ class MyBot(BaseBot):
                         await self.highrise.send_emote(emote, self.user_id)
                     except Exception as e:
                         print(f"خطا در دنس ربات: {e}")
-                    await sleep(25.0)
+                    await sleep(15.0)
             except CancelledError:
                 pass
             except Exception as e:
@@ -136,7 +137,7 @@ class MyBot(BaseBot):
                     except Exception as e:
                         print(f"خطا در دنس {username}: {e}")
                         break
-                    await sleep(25.0)
+                    await sleep(20.0)
             except CancelledError:
                 pass
             except Exception as e:
@@ -169,7 +170,11 @@ class MyBot(BaseBot):
     async def on_chat(self, user: User, message: str):
         msg = message.strip().lower()
 
-        # 📍 !pos
+        if msg == "ایست":
+            if await self.stop_dance(user):
+                await self.highrise.chat(f"🛑 دنس @{user.username} متوقف شد!")
+            return
+
         if msg == "!pos":
             try:
                 room_users = await self.highrise.get_room_users()
@@ -185,7 +190,6 @@ class MyBot(BaseBot):
                 await self.highrise.chat(f"❌ خطا: {e}")
             return
 
-        # 📍 !setpos - ثبت موقعیت جدید برای ربات
         if msg == "!setpos":
             if not self.is_admin(user.username):
                 await self.highrise.chat(f"❌ {user.username}، فقط ادمین!")
@@ -197,29 +201,23 @@ class MyBot(BaseBot):
                         self.default_position = pos
                         await self.highrise.teleport(user_id=self.user_id, dest=pos)
                         await self.highrise.chat(f"📍 موقعیت جدید ثبت شد: x={pos.x}, y={pos.y}, z={pos.z}")
-                        print(f"📍 موقعیت جدید: {pos}")
                         break
             except Exception as e:
                 await self.highrise.chat(f"❌ خطا: {e}")
-                print(f"خطا در !setpos: {e}")
             return
 
-        # 👕 !rad
         if msg == "!rad":
             try:
                 outfit_response = await self.highrise.get_user_outfit(user.id)
                 if hasattr(outfit_response, 'outfit') and outfit_response.outfit:
                     await self.highrise.set_outfit(outfit_response.outfit)
                     await self.highrise.chat(f"👕 لباس @{user.username} رو پوشیدم!")
-                    print(f"👕 لباس {user.username} پوشیده شد.")
                 else:
                     await self.highrise.chat("❌ اطلاعات لباس پیدا نشد!")
             except Exception as e:
                 await self.highrise.chat(f"❌ خطا: {e}")
-                print(f"خطا در !rad: {e}")
             return
 
-        # 🎯 !me
         if msg == "!me":
             user_position = None
             try:
@@ -278,10 +276,10 @@ class MyBot(BaseBot):
                 help_text = (
                     "📋 دستورات ربات:\n"
                     "1-22 - دنس‌ها\n"
-                    "stop - توقف دنس\n"
+                    "ایست - توقف دنس\n"
                     "!me - ربات بیاد جای تو\n"
                     "!pos - نمایش موقعیت شما\n"
-                    "!setpos - ثبت موقعیت ربات (فقط ادمین)\n"
+                    "!setpos - ثبت موقعیت ربات (ادمین)\n"
                     "!rad - ربات لباس تو رو بپوشه\n"
                     "!help - راهنما\n"
                     "!adminlist - لیست ادمین‌ها\n"
