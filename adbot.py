@@ -35,7 +35,8 @@ class MyBot(BaseBot):
         self.bot_dance_task = None
         self.announcement_task = None
         self.teleport_loop_task = None
-        self.admin_usernames = ["max._.eror"]
+        # 🆕 ادمین جدید
+        self.admin_usernames = ["carljohnsun"]
         self.truth_game_active = False
         self.default_position = Position(x=16.5, y=0.0, z=4.51)
         self.emotes = {
@@ -54,7 +55,6 @@ class MyBot(BaseBot):
         return username.lower() in [a.lower() for a in self.admin_usernames]
 
     async def force_teleport(self):
-        """تلپورت قطعی: ۱۰ بار + چک رسیدن"""
         if not self.user_id:
             return False
         for i in range(10):
@@ -86,7 +86,7 @@ class MyBot(BaseBot):
     async def teleport_loop(self):
         try:
             while True:
-                await sleep(180.0)  # ۳ دقیقه
+                await sleep(180.0)
                 if not self.user_id:
                     continue
                 if self.truth_game_active:
@@ -111,7 +111,7 @@ class MyBot(BaseBot):
     async def on_start(self, session_metadata):
         print("✅ ربات وصل شد!")
         self.user_id = session_metadata.user_id
-        await sleep(20.0)  # ۲۰ ثانیه صبر
+        await sleep(20.0)
         await self.force_teleport()
         await self.start_bot_dance(self.bot_dance)
         self.start_announcement()
@@ -458,7 +458,7 @@ class MyBot(BaseBot):
                     pass
 
 async def main():
-    room_id = "69029526dc071760c84aa355"
+    room_id = "66601edcd00dd4705ecdb2f6"
     api_token = "d1b29fe834a9dc99541aba0f3905be0cdd5bb02af8d85a58aa3403505f9e99ad"
 
     web_thread = threading.Thread(target=run_web_server, daemon=True)
