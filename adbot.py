@@ -35,10 +35,10 @@ class MyBot(BaseBot):
         self.bot_dance_task = None
         self.announcement_task = None
         self.teleport_loop_task = None
-        # 🆕 ادمین جدید
         self.admin_usernames = ["carljohnsun"]
         self.truth_game_active = False
-        self.default_position = Position(x=16.5, y=0.0, z=4.51)
+        # 📍 موقعیت جدید (ثابت)
+        self.default_position = Position(x=19.499998092651, y=0.0, z=8.5100002288818)
         self.emotes = {
             "1": "idle_zombie", "2": "idle_layingdown2", "3": "idle_layingdown",
             "4": "idle-sleep", "5": "idle-sad", "6": "idle-posh",
@@ -84,9 +84,10 @@ class MyBot(BaseBot):
         self.teleport_loop_task = create_task(self.teleport_loop())
 
     async def teleport_loop(self):
+        """فقط اگه ربات از جاش دور شد، برش می‌گردونه"""
         try:
             while True:
-                await sleep(180.0)
+                await sleep(180.0)  # هر ۳ دقیقه
                 if not self.user_id:
                     continue
                 if self.truth_game_active:
@@ -99,6 +100,7 @@ class MyBot(BaseBot):
                             bot_pos = pos
                             break
                     if bot_pos:
+                        # فقط اگه بیش از ۲ واحد دور شده باشه
                         if (abs(bot_pos.x - self.default_position.x) > 2.0 or
                             abs(bot_pos.z - self.default_position.z) > 2.0):
                             print(f"⚠️ ربات از جاش دوره! برمی‌گردونم...")
